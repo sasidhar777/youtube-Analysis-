@@ -4,9 +4,10 @@ Problem Statement
 Creating Streamlit application that allows users to give YouTube channel Details and provides various insights on the data and channels. Using MongoDB as Data Ware house to store all the API related information and then into MSSQL DB and generate various visualisations and Tables 
 
 
-Languages and technologies used:
+# Languages and technologies used:
 
 Python scripting, 
+
 Data Collection,
 
 MongoDB, 
@@ -20,7 +21,7 @@ API integration,
 Data Managment using MongoDB  and SQL
 
 
-Code Overview:
+# Code Overview:
 
 1	We have to setup the google API configuration to accessing Youtube API. And create creadential data file and made of the google API code to fetch the data related to youtube channel
 
