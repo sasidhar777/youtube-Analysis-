@@ -17,11 +17,6 @@ scopes = ["https://www.googleapis.com/auth/youtube.readonly"]
 image = Image.open('guvi_image.jpg')
 st.image(image, caption='Guvi Brand Amabassador')
 
-def mongoproceed(input):
-    st.write(input)
-
-
-
 def youtube_api_channel(channel_id):
     os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
     api_service_name = "youtube"
