@@ -7,7 +7,6 @@ Creating Streamlit application that allows users to give YouTube channel Details
 Languages and technologies used:
 
 Python scripting, 
-
 Data Collection,
 
 MongoDB, 
