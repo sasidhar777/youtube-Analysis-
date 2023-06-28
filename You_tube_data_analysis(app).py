@@ -8,12 +8,14 @@ import json
 import re
 from sqlalchemy.sql import text
 import matplotlib.pyplot as plt
-import seaborn as sns
 import pandas as pd
-import plotly.express as px
+import numpy as np
+from PIL import Image
 
-st.title("You Tube Video Analysis")
+st.title("Guvi's You Tube Video Analysis")
 scopes = ["https://www.googleapis.com/auth/youtube.readonly"]
+image = Image.open('guvi_image.jpg')
+st.image(image, caption='Guvi Brand Amabassador')
 
 def mongoproceed(input):
     st.write(input)
@@ -21,10 +23,7 @@ def mongoproceed(input):
 
 
 def youtube_api_channel(channel_id):
-    # Disable OAuthlib's HTTPS verification when running locally.
-    # *DO NOT* leave this option enabled in production.
     os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
-
     api_service_name = "youtube"
     api_version = "v3"
     client_secrets_file = "YOUR_CLIENT_SECRET_FILE.json"
@@ -55,8 +54,6 @@ def mongo_insert_channel(json_resp):
     myclient = pymongo.MongoClient("mongodb://localhost:27017")
     my_db=myclient['YouTubeAnalysis']
     my_collection = my_db['channel']
-    #df = myclient.list_database_names()
-    #st.dataframe(df)
     my_collection.insert_one(json_resp)
     st.write("mongo insert completed")
 
@@ -87,17 +84,12 @@ def youtube_api_playlist(channel_id_input):
     )
     response = request.execute()
     for item in response['items']:
-            #description = item['snippet']['description']
             item_id = item['id'] # each playlist id of channel 
             youtube_api_videos(item_id)
-            #print(item_id)
-    #print(response)'''
     return response
     
 
 def youtube_api_videos(playlist_id):
-    # Disable OAuthlib's HTTPS verification when running locally.
-    # *DO NOT* leave this option enabled in production.
     os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 
     api_service_name = "youtube"
@@ -107,7 +99,6 @@ def youtube_api_videos(playlist_id):
     # Get credentials and create an API client
     flow = google_auth_oauthlib.flow.InstalledAppFlow.from_client_secrets_file(
         client_secrets_file, scopes)
-    #credentials = flow.run_console()
     credentials= flow.run_local_server(port=0)
     youtube = googleapiclient.discovery.build(
         api_service_name, api_version, credentials=credentials)
@@ -120,22 +111,17 @@ def youtube_api_videos(playlist_id):
     )
     response = request.execute()
     for item in response['items']:
-            #description = item['snippet']['description']
             content = item['contentDetails']
             youtube_api_each_video(content['videoId'])
     mongo_insert_allvideos(response)
-    #print(response)
-
+    
 def youtube_api_each_video(video_id):
-    # Disable OAuthlib's HTTPS verification when running locally.
-    # *DO NOT* leave this option enabled in production.
     os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 
     api_service_name = "youtube"
     api_version = "v3"
     client_secrets_file = "YOUR_CLIENT_SECRET_FILE.json"
     
-    # Get credentials and create an API client
     flow = google_auth_oauthlib.flow.InstalledAppFlow.from_client_secrets_file(
         client_secrets_file, scopes)
     #credentials = flow.run_console()
@@ -165,8 +151,6 @@ def mongo_insert_allvideos(json_resp):
     myclient = pymongo.MongoClient("mongodb://localhost:27017")
     my_db=myclient['YouTubeAnalysis']
     my_collection = my_db['all_videos']
-    #df = myclient.list_database_names()
-    #st.dataframe(df)
     my_collection.insert_one(json_resp)
     st.write("mongo all videos insert completed")
 
@@ -176,8 +160,6 @@ def mongo_insert_playlist(json_resp):
     myclient = pymongo.MongoClient("mongodb://localhost:27017")
     my_db=myclient['YouTubeAnalysis']
     my_collection = my_db['Playlist']
-    #df = myclient.list_database_names()
-    #st.dataframe(df)
     my_collection.insert_one(json_resp)
     st.write("mongo insert completed")
 
@@ -187,8 +169,9 @@ def return_chanel_details(channel_id):
     myclient = pymongo.MongoClient("mongodb://localhost:27017")
     my_db=myclient['YouTubeAnalysis']
     my_collection = my_db['channel']
+
     for ch_response in my_collection.find({"items.id": channel_id}):
-        #st.write(type(doc["items"])) #list type
+        st.write(ch_response)
         view_count = ch_response['items'][0]['statistics']['viewCount']
         channel_name= ch_response['items'][0]['snippet']['title']
         st.write('sql insert complete')
@@ -221,12 +204,11 @@ def return_playlist_details(channel_id):
 def insert_sql_playlist(channel_id , playlist_id, playlist_name):
     conn = st.experimental_connection('mysql', type='sql')  
     length=len(playlist_id)
-    #st.write(playlist_id,playlist_name)
     with conn.session as s:
         for i in range(length):
             s.execute(
-                text('INSERT INTO youtube.playlist (channel_id, playlist_id, playlist_name ) VALUES (:owner, :pet, :dog);'),
-                params=dict(owner=channel_id, pet=playlist_id[i] , dog=playlist_name[i])
+                text('INSERT INTO youtube.playlist (channel_id, playlist_id, playlist_name ) VALUES (:arg1, :arg2, :arg3);'),
+                params=dict(arg1=channel_id, arg2=playlist_id[i] , arg3=playlist_name[i])
                     )
             s.commit()
 
@@ -235,7 +217,6 @@ def return_ownerids_details(channel_id):
     my_db=myclient['YouTubeAnalysis']
     my_collection = my_db['all_videos']
     owner_ids=[]
-    #channel_id= 'UC_x5XG1OV2P6uZZ5FSM9Ttw'
     for ch_response in my_collection.find({"items.snippet.channelId": channel_id}):
         for item in ch_response['items']:
             if owner_ids.count(item['snippet']['videoOwnerChannelId'])==0:
@@ -256,16 +237,25 @@ def return_video_details(channel_id):
     publish_time=[]
     #channel_id= 'UC_x5XG1OV2P6uZZ5FSM9Ttw'
     for ch_response in my_collection.find({"items.snippet.channelId": channel_id}):
-        #print (ch_response)
         for item in ch_response['items']:
+            
             Video_id.append(item['id'])
             Video_name.append(item['snippet']['title'])
             views_cnt.append(int(item['statistics']['viewCount']))
             likes_cnt.append(int(item['statistics']['likeCount']))
             s=item['contentDetails']['duration']
-            min = re.search('T(.*)M', s)
-            sec = re.search('M(.*)S', s)
-            val= round( int(min.group(1)) + int(sec.group(1))/60 , 2)
+            st.write(s)
+            min = re.search('T(.*)M', s)        
+            sec = re.search('M(.*)S', s)                    
+            if min==None:                                 # if time is of format PT50S only seconds are presnt 
+                sec=re.search('T(.*)S', s)
+                val=round( int(sec.group(1))/60 , 2)
+            elif sec == None:    #if only min are present PT1M
+                val= round( int(min.group(1)),2) 
+            else:                                         # if time is of format PT16M5S both min and sec are present
+                val= round( int(min.group(1)) + int(sec.group(1))/60 , 2)
+            print(min)
+            #val= round( int(min.group(1)) + int(sec.group(1))/60 , 2)
             duration_min.append(val)
             comments_cnt.append(int(item['statistics']['commentCount']))
             time=item['snippet']['publishedAt']
@@ -275,7 +265,6 @@ def return_video_details(channel_id):
 def insert_sql_video(Video_id , Video_name, views_cnt, likes_cnt, duration_min, comments_cnt, publish_time):
     conn = st.experimental_connection('mysql', type='sql')  
     length=len(Video_id)
-    #st.write(Video_id,Video_name)
     with conn.session as s:
         for i in range(length):
             s.execute(
@@ -292,10 +281,8 @@ def return_playstid_videoid_details(channel_id):
     my_collection = my_db['all_videos']
     playlist_ids=[]
     video_ids=[]
-    channel_id= 'UC_x5XG1OV2P6uZZ5FSM9Ttw'
-    #print(my_collection)
+    #channel_id= 'UC_x5XG1OV2P6uZZ5FSM9Ttw'
     for ch_response in my_collection.find({"items.snippet.channelId": channel_id}):
-        #print (ch_response)
         for item in ch_response['items']:
             playlist_ids.append(item['snippet']['playlistId'])
             #print(item['contentDetails']['videoId'])
@@ -325,106 +312,76 @@ def update_sql_playlist_video_id_details():
     
 
 
-def mysqlcon():
-    
-    #user_input = st.text_input("Provide Channel ID", '')
-    #st.write(user_input)
-    #conn = st.experimental_connection('mysql', type='sql')
-    conn = st.experimental_connection('mysql', type='sql')
-    # Perform query.
-    df = conn.query('SELECT work_year FROM d_salery limit 10;', ttl=600)
-    st.dataframe(df)
-    # Print results.
-    #for row in df.itertuples():
-        #st.write(f"{row.index} has a :{row.work_year}:")
-        #st.write(row.work_year)
-
 
 def question1():
     conn = st.experimental_connection('mysql', type='sql')
     st.subheader('Names of all videos and their corresponding channels')
-    df = conn.query('SELECT  Video_name , channel_name FROM channel a INNER JOIN playlist b ON a.channel_id = b.channel_id INNER JOIN video c ON b.playlist_id = c.playlist_id;', ttl=600)
+    df = conn.query('SELECT  Video_name "Video Name" , channel_name "Channel Name" FROM channel a INNER JOIN playlist b ON a.channel_id = b.channel_id INNER JOIN video c ON b.playlist_id = c.playlist_id;', ttl=600)
+    df.index = np.arange(1, len(df) + 1)
     st.dataframe(df)
 
 def question2():
     conn = st.experimental_connection('mysql', type='sql')
     st.subheader('Channels have the most number of videos')
-    df = conn.query('SELECT  channel_name, count(*) cnt FROM channel a INNER JOIN playlist b ON a.channel_id = b.channel_id INNER   JOIN video c ON b.playlist_id = c.playlist_id group by a.channel_id , channel_name order by cnt desc limit 1 ;', ttl=600)
+    df = conn.query('SELECT  channel_name "Channel Name", count(*) "No of Videos" FROM channel a INNER JOIN playlist b ON a.channel_id = b.channel_id INNER   JOIN video c ON b.playlist_id = c.playlist_id group by a.channel_id , channel_name order by 2 desc limit 1 ;', ttl=600)
+    df.index = np.arange(1, len(df) + 1)
     st.dataframe(df)
 
 def question3():
     conn = st.experimental_connection('mysql', type='sql')
     st.subheader('Top 10 most viewed videos')
-    df = conn.query(' SELECT channel_name, video_name, views_cnt FROM channel a INNER JOIN playlist b ON a.channel_id = b.channel_id INNER JOIN video c ON b.playlist_id = c.playlist_id order by views_cnt desc limit 10;', ttl=600)
+    df = conn.query(' SELECT channel_name "Channel Name", video_name "Video Name" , views_cnt "No of Views" FROM channel a INNER JOIN playlist b ON a.channel_id = b.channel_id INNER JOIN video c ON b.playlist_id = c.playlist_id order by views_cnt desc limit 10;', ttl=600)
+    df.index = np.arange(1, len(df) + 1)
     st.dataframe(df)
 
 def question4():
     conn = st.experimental_connection('mysql', type='sql')
     st.subheader('Comments made on each video')
-    df = conn.query('SELECT video_name , comments_cnt cnt  FROM channel a INNER JOIN playlist b ON a.channel_id = b.channel_id INNER JOIN video c ON b.playlist_id = c.playlist_id order by cnt desc ;', ttl=600)
+    df = conn.query('SELECT video_name "Video Name", comments_cnt "No of comments"  FROM channel a INNER JOIN playlist b ON a.channel_id = b.channel_id INNER JOIN video c ON b.playlist_id = c.playlist_id order by 2 desc ;', ttl=600)
+    df.index = np.arange(1, len(df) + 1)
     st.dataframe(df)
 
 def question5():
     conn = st.experimental_connection('mysql', type='sql')
     st.subheader('Video with highest number of likes')
-    df = conn.query(' SELECT channel_name, video_name, likes_cnt cnt   FROM channel a INNER JOIN playlist b ON a.channel_id = b.channel_id INNER JOIN video c ON b.playlist_id = c.playlist_id order by cnt desc limit 1;', ttl=600)
+    df = conn.query(' SELECT channel_name "Channel Name", video_name "Video Name" , likes_cnt "No of Likes"   FROM channel a INNER JOIN playlist b ON a.channel_id = b.channel_id INNER JOIN video c ON b.playlist_id = c.playlist_id order by 3 desc limit 1;', ttl=600)
+    df.index = np.arange(1, len(df) + 1)
     st.dataframe(df)
 
 def question6():
     conn = st.experimental_connection('mysql', type='sql')
     st.subheader('Total number of likes and Disklikes of each Videos')
-    df = conn.query(' SELECT channel_name, video_name, (likes_cnt+ IFNULL(dislikes_cnt, 0) ) cnt   FROM channel a INNER JOIN playlist b ON a.channel_id = b.channel_id INNER JOIN video c ON b.playlist_id = c.playlist_id order by cnt desc ;', ttl=600)
+    df = conn.query(' SELECT channel_name "Channel Name" , video_name "Video Name" , (likes_cnt+ IFNULL(dislikes_cnt, 0) ) cnt   FROM channel a INNER JOIN playlist b ON a.channel_id = b.channel_id INNER JOIN video c ON b.playlist_id = c.playlist_id order by cnt desc ;', ttl=600)
+    df.index = np.arange(1, len(df) + 1)
     st.dataframe(df)
 
 
 def question7():
     conn = st.experimental_connection('mysql', type='sql')
-    st.subheader('Total number of views for each channel in (millions')
+    st.subheader('Total number of views for each channel in (millions)')
     df = conn.query('select channel_name as "channle name" , (channel_view_cnt/1000000) as  "view count" from channel order by 2 desc;', ttl=600)
+    df.index = np.arange(1, len(df) + 1)
+    st.write(df)
     df=  pd.DataFrame(df)
     df=df.set_index("channle name")
-    st.write(df)
     st.subheader('Total number of views for each channel in (millions)')
     st.bar_chart(data= df, width=0.1, height=0, use_container_width=True)    
-    '''
-    fig = px.bar(df,
-                     y='channle name',
-                     x='view count',
-                     orientation='v',
-                     color='red'
-                    )
-    st.plotly_chart(fig,use_container_width=True)  
-
     
-    y1 = df['channle name']
-    x1= df['view count']
-    st.write(x1,y1)
-    plt.bar(x1,y1,color = "blue")
-    #plt.bar(x+0.2,female,color = "#5f6296",label="Female",width=0.4)#o,*,.,,,x,X,+,P,s,D,d,H,h
-    plt.legend()
-    plt.xlabel("Channel Name")
-    plt.ylabel("Videos Count ",weight="bold")
-    #plt.title("My First Plot",weight="bold")
-    plt.xticks(rotation=30,weight="bold")
-    #plt.yticks(color="green",size=20)
-    #plt.show()
-    #st.pyplot(plt.gcf())
-    st.pyplot(plt)
-    #st.bar_chart(data=df)'''
-
 def question8():
     conn = st.experimental_connection('mysql', type='sql')
-    st.subheader('List of videos published in Year 2022')
+    st.subheader('List of Channels published Videos in Year 2022')
     df = conn.query('SELECT distinct channel_name   FROM channel a INNER JOIN playlist b ON a.channel_id = b.channel_id INNER JOIN video c ON b.playlist_id = c.playlist_id  where YEAR(publish_time) = "2022" order by channel_name asc ;', ttl=600)
+    df.index = np.arange(1, len(df) + 1)
     st.dataframe(df)
 
 def question9():
     conn = st.experimental_connection('mysql', type='sql')
     st.subheader('Average duration of Videos in chnnels')
-    df = conn.query('SELECT channel_name as "channle name", round(avg(duration_min),2) "Average Duration in min"  FROM channel a INNER JOIN playlist b ON a.channel_id = b.channel_id INNER JOIN video c ON b.playlist_id = c.playlist_id group by a.channel_id , channel_name order by 2 desc  ', ttl=600)
-    df=  pd.DataFrame(df)
-    df=df.set_index("channle name")
+    df = conn.query('SELECT channel_name as "channel name", round(avg(duration_min),2) "Average Duration in min"  FROM channel a INNER JOIN playlist b ON a.channel_id = b.channel_id INNER JOIN video c ON b.playlist_id = c.playlist_id group by a.channel_id , channel_name order by 2 desc  ', ttl=600)
+    df.index = np.arange(1, len(df) + 1)
     st.write(df)
+    df=  pd.DataFrame(df)
+    df=df.set_index("channel name")
     st.subheader('Average duration of Videos in chnnels in min')
     st.bar_chart(data= df, width=0.1, height=0, use_container_width=True)        
     st.dataframe(df)
@@ -432,7 +389,8 @@ def question9():
 def question10():
     conn = st.experimental_connection('mysql', type='sql')
     st.subheader('Vidoes with highest number of comments')
-    df = conn.query('SELECT channel_name, comments_cnt  FROM channel a INNER JOIN playlist b ON a.channel_id = b.channel_id INNER JOIN video c ON b.playlist_id = c.playlist_id order by comments_cnt desc limit 1 ;', ttl=600)
+    df = conn.query('SELECT channel_name as "channel name", comments_cnt  as " comments count"  FROM channel a INNER JOIN playlist b ON a.channel_id = b.channel_id INNER JOIN video c ON b.playlist_id = c.playlist_id order by comments_cnt desc limit 1 ;', ttl=600)
+    df.index = np.arange(1, len(df) + 1)
     st.dataframe(df)
 
 
@@ -441,15 +399,15 @@ if __name__ == "__main__":
     
     result = st.button('click here For mongo insert')
     if result == True:
+        st.write('Data Lake insert Started')
         channel_json_responce = youtube_api_channel(channel_id_input)
         mongo_insert_channel(channel_json_responce)
         playlist_json_responce = youtube_api_playlist(channel_id_input)
         mongo_insert_playlist(playlist_json_responce)
+        st.write('Data Lake insert Completed ')
     result_sql = st.button('click here For sql insert')
     if result_sql == True:
-        '''
-        channel_id , channel_name, view_count = return_chanel_details(channel_id_input)
-        insert_sql_channel(channel_id , channel_name, int(view_count))
+        st.write('Data Base insert Started')
         channel_id , channel_name, view_count = return_chanel_details(channel_id_input)
         insert_sql_channel(channel_id , channel_name, int(view_count))
         channel_id , playlist_id, playlist_name = return_playlist_details(channel_id_input)
@@ -460,16 +418,10 @@ if __name__ == "__main__":
             insert_sql_video(Video_id , Video_name, views_cnt, likes_cnt, duration_min, comments_cnt, publish_time)
         playlist_ids, video_ids = return_playstid_videoid_details(channel_id_input)
         insert_sql_playlist_video_id_details(playlist_ids, video_ids)
-        update_sql_playlist_video_id_details()'''
-        
-
-    '''
-    result_sql = st.button('clik here For sql insert')
-    if result_sql == True:
-        channel_id , channel_name, view_count = return_chanel_details(channel_id_input)
-        insert_sql_channel(channel_id , channel_name, int(view_count))'''
-    
-    final_result = st.button('click here For final result')
+        update_sql_playlist_video_id_details()
+        st.write('Data Base insert Completed')
+  
+    final_result = st.button('Click Here For Data Analysis Results')
     if final_result == True:
         question1()
         question2()
@@ -481,6 +433,3 @@ if __name__ == "__main__":
         question8()
         question9()
         question10()
-        
-
-
